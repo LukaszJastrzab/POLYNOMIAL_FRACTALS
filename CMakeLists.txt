@@ -27,7 +27,10 @@ add_subdirectory(external/freeglut)
 # =========================
 add_executable(${PROJECT_NAME}
     src/main.cpp
+    src/complex.cuh
+    src/cuda_kernels.h
     src/cuda_kernels.cu
+    src/interactions.h
 )
 
 # =========================
