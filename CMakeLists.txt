@@ -34,11 +34,22 @@ add_executable(${PROJECT_NAME}
 )
 
 # =========================
+# CUDA debug flags
+# =========================
+target_compile_options(${PROJECT_NAME} PRIVATE
+    $<$<AND:$<COMPILE_LANGUAGE:CUDA>,$<CONFIG:Debug>>:-G -lineinfo>
+)
+
+# CUDA architecture
+# =========================
+set_property(TARGET ${PROJECT_NAME} PROPERTY CUDA_ARCHITECTURES 75;86;89)
+
+# =========================
 # CUDA settings
 # =========================
-set_target_properties(${PROJECT_NAME} PROPERTIES
-    CUDA_SEPARABLE_COMPILATION ON
-)
+#set_target_properties(${PROJECT_NAME} PROPERTIES
+#    CUDA_RUNTIME_LIBRARY Shared
+#)
 
 # =========================
 # Include directories

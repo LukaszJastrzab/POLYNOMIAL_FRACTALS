@@ -1,4 +1,5 @@
 #include <limits>
+#include <vector>
 
 #include <cuda_runtime.h>
 #include <device_launch_parameters.h>
@@ -15,8 +16,6 @@ const double initUp = 10.0;
 const double initDown = -initUp;
 
 
-using floatType = double;
-
 int divUp( int a, int b )
 {
 	return ( a + b - 1 ) / b;
@@ -24,18 +23,18 @@ int divUp( int a, int b )
 
 
 template < typename T >
-__device__
+__host__ __device__
 Complex< T > f( Complex< T > x )
 {
-    return x * x * x + Complex< T >( -5.0 ) * x * x + Complex< T >( 2.0 ) * x + 1;
+	return ( x - Complex< T >( -5.0, 3.0 ) ) * ( x - Complex< T >( 5.0, 3.0 ) ) * ( x - Complex< T >( -5.0, -5.0 ) );
 }
 
 
 template< typename T >
-__device__
+__host__ __device__
 Complex< T > f_div( Complex< T > x )
 {
-	const auto h = Complex< T >( 0.0, 1e-20 );
+	const auto h = Complex< T >( 0.0, 1e-6 );
 
 	return ( f( x + h ) - f( x - h ) ) / ( Complex < T >( 2 ) * h );
 }
@@ -43,7 +42,10 @@ Complex< T > f_div( Complex< T > x )
 __device__
 unsigned char clip( int n )
 {
-	return n > 255 ? 255 : ( n < 0 ? 0 : n );
+	if( n < 0 )
+		n = -n;
+
+	return ( n % 255 );
 }
 
 __device__
@@ -64,12 +66,93 @@ floatType scaleXY( int rc, int wh, float ld, float ru )
 	return ld + ( ru - ld ) * rc / wh;
 }
 
+__device__
+uchar4 siutZeroColor( int zero_idx )
+{
+	uchar4 color{ 0,0,0,0 };
+
+	switch( zero_idx )
+	{
+	case 0:
+		color.x = 255;
+		break;
+	case 1:
+		color.y = 255;
+		break;
+	case 2:
+		color.z = 255;
+		break;
+	case 3:
+		color.x = 255;
+		color.y = 255;
+		break;
+	case 4:
+		color.x = 255;
+		color.z = 255;
+		break;
+	case 5:
+		color.y = 255;
+		color.z = 255;
+		break;
+	}
+
+	return color;
+}
+
+__host__ __device__
+Complex< floatType > NewtonIteration( Complex< floatType > z )
+{
+	Complex< floatType > denom = f_div( z );
+
+	if( denom.real == floatType( 0.0 ) && denom.imag == floatType( 0.0 ) )
+		return z;
+	else
+		return z - ( f( z ) / denom );
+}
+
+constexpr floatType PI = 3.14159265358979323846;
+constexpr floatType eps = 1e-5;
+
+std::vector< Complex< floatType > > CalcZeroesCPU( floatType r, int N )
+{
+	std::vector< Complex< floatType > > out;
+
+	for( int i{ 0 }; i < N; ++i )
+	{
+		floatType fi = i * 2.0 * PI / N;
+
+		auto z_0 = Complex< floatType >( r * cos( fi ), r * sin( fi ) );
+		auto z_n{ NewtonIteration( z_0 ) };
+
+		while( z_n.dist( z_0 ) > eps )
+		{
+			z_0 = z_n;
+			z_n = NewtonIteration( z_0 );
+		}
+
+		bool already_found{ false };
+		for ( const auto& z : out  )
+			if( z_n.dist( z ) <= eps )
+			{
+				already_found = true;
+				break;
+			}
+
+		if( !already_found )
+			out.push_back( z_n );
+	}
+
+	return out;
+}
 
 __global__
-void NewtonKernel( uchar4* d_out, int w, int h, int left, int right, int down, int up )
+void NewtonKernel(floatType* zeros_real, floatType* zeros_imag, int zeros_N, uchar4* d_out, int w, int h, int left, int right, int down, int up )
 {
 	const int c = blockIdx.x * blockDim.x + threadIdx.x;
 	const int r = blockIdx.y * blockDim.y + threadIdx.y;
+
+	if( c >= w || r >= h )
+		return;
 
 	floatType x = scaleXY( c, w, left, right );
 	floatType y = scaleXY( r, h, down, up );
@@ -78,18 +161,53 @@ void NewtonKernel( uchar4* d_out, int w, int h, int left, int right, int down, i
 
 	Complex< floatType > z_0( x, y );
 
-	const int max_count{ 100 };
+	Complex< floatType > z_n{ NewtonIteration( z_0 ) };
+
+	while( z_n.dist( z_0 ) > eps )
+	{
+		z_0 = z_n;
+		z_n = NewtonIteration( z_0 );
+	}
+
 	int idx{ 0 };
+	for( ; idx < zeros_N; ++idx )
+		if( sqrt( ( z_n.real - zeros_real[ idx ] ) * ( z_n.real - zeros_real[ idx ] ) +
+			( z_n.imag - zeros_imag[ idx ] ) * ( z_n.imag - zeros_imag[ idx ] ) ) <= eps )
+			break;
 
-	while( idx++ < max_count )
-		z_0 = z_0 - ( f( z_0 ) / f_div( z_0 ) );
+	d_out[ g_idx ] = siutZeroColor( idx );
 
-	d_out[ g_idx ].x = clip( c / 3 );
-	d_out[ g_idx ].y = clip( r / 3 );
-	d_out[ g_idx ].z = 0;
+	//d_out[ g_idx ].x = clip( ( int )( z_n.real * 10.0 ) );
+	//d_out[ g_idx ].y = clip( ( int )( z_n.imag * 10.0 ) );
+	//d_out[ g_idx ].z = clip( ( int )( z_n.imag * 100.0 ) );
+}
 
+std::vector< floatType > zeros_real, zeros_imag;
+floatType* d_zeros_real{ NULL }, * d_zeros_imag{ NULL };
+int zeros_count{ 0 };
 
+void prepareKernelData()
+{
+	auto zeros = CalcZeroesCPU( 10, 120 );
+	for( const auto& z : zeros )
+	{
+		zeros_real.push_back( z.real );
+		zeros_imag.push_back( z.imag );
+	}
 
+	zeros_count = zeros.size();
+
+	cudaMalloc( &d_zeros_real, zeros_count * sizeof( floatType ) );
+	cudaMalloc( &d_zeros_imag, zeros_count * sizeof( floatType ) );
+
+	cudaMemcpy( d_zeros_real, zeros_real.data(), zeros_count * sizeof( floatType ), cudaMemcpyHostToDevice );
+	cudaMemcpy( d_zeros_imag, zeros_imag.data(), zeros_count * sizeof( floatType ), cudaMemcpyHostToDevice );
+}
+
+void cleanKernelData()
+{
+	cudaFree( d_zeros_real );
+	cudaFree( d_zeros_imag );
 }
 
 void kernelLauncher( uchar4* d_out, int w, int h )
@@ -98,7 +216,10 @@ void kernelLauncher( uchar4* d_out, int w, int h )
 	const dim3 gridSize( divUp( w, TX ), divUp( h, TY ) );
 	const size_t locMemSize = TX * TY * sizeof( floatType );
 
-	NewtonKernel <<< gridSize, blockSize, locMemSize >>> ( d_out, w, h, initLeft, initRight, initDown, initRight );
+	if( d_zeros_real == NULL || d_zeros_imag == NULL || zeros_count == 0 )
+		throw;
+
+	NewtonKernel <<< gridSize, blockSize, locMemSize >>> ( d_zeros_real, d_zeros_imag, zeros_count, d_out, w, h, initLeft, initRight, initDown, initRight );
 
 
 }

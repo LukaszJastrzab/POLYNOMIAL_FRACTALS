@@ -83,6 +83,7 @@ void exitfunc()
 
 int main(int argc, char** argv)
 {
+    prepareKernelData();
     printInstructions();
     initGLUT( &argc, argv );
     gluOrtho2D( 0, W, H, 0 );
@@ -94,6 +95,7 @@ int main(int argc, char** argv)
     initPixelBuffer();
     glutMainLoop();
     atexit( exitfunc );
+    cleanKernelData();
 
     return 0;
 }
