@@ -15,29 +15,17 @@ std::vector< floatType > zeros_real, zeros_imag;
 floatType* d_zeros_real{ NULL }, * d_zeros_imag{ NULL };
 int zeros_count{ 0 };
 
-const double initRight = 10.0;
-const double initLeft = -initRight;
-const double initUp = 10.0;
-const double initDown = -initUp;
+double DiffX = 10.0, DiffY = 10.0;
+double MidX = 0.0, MidY = 0.0;
 
-double R{ initRight }, L{ initLeft }, U{ initUp }, D{ initDown }, Xadd{ 0 }, Yadd{ 0 }, Zoom{ 1.0 };
+double L, R, U, D;
 
 void CalcCoords()
 {
-	auto Right = initRight + Xadd;
-	auto Left = initLeft + Xadd;
-	auto Up = initUp + Yadd;
-	auto Down = initDown + Yadd;
-
-	auto MidX = ( Right + Left ) / 2.0;
-	auto DiffX = Right - MidX;
-	auto MidY = ( Up + Down ) / 2.0;
-	auto DiffY = Up - MidY;
-
-	R = MidX + Zoom * DiffX;
-	L = MidX - Zoom * DiffX;
-	U = MidY + Zoom * DiffY;
-	D = MidY - Zoom * DiffY;
+	R = MidX + DiffX;
+	L = MidX - DiffX;
+	U = MidY + DiffY;
+	D = MidY - DiffY;
 }
 
 
@@ -179,7 +167,7 @@ void NewtonKernel(floatType* zeros_real, floatType* zeros_imag, int zeros_N, uch
 		return;
 
 	floatType x = scaleXY( c, w, left, right );
-	floatType y = scaleXY( r, h, down, up );
+ 	floatType y = scaleXY( r, h, down, up );
 
 	int g_idx = flatten( c, r, w, h );
 

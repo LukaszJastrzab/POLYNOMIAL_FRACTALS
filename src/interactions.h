@@ -3,7 +3,7 @@
 #define W 800
 #define H 800
 
-extern double Xadd, Yadd, Zoom;
+extern double DiffX, DiffY, MidX, MidY;
 
 void keyboard( unsigned char key, int x, int y )
 {
@@ -14,12 +14,22 @@ void keyboard( unsigned char key, int x, int y )
 
 void handleSpecialKeypress( int key, int x, int y )
 {
-	if( key == GLUT_KEY_RIGHT ) Xadd += ( 2.0 * Zoom );
-	if( key == GLUT_KEY_LEFT ) Xadd -= ( 2.0 * Zoom );
-	if( key == GLUT_KEY_UP ) Yadd += ( 2.0 * Zoom );
-	if( key == GLUT_KEY_DOWN ) Yadd -= ( 2.0 * Zoom );
-	if( key == GLUT_KEY_PAGE_DOWN ) Zoom *= 1.2;
-	if( key == GLUT_KEY_PAGE_UP ) Zoom /= 1.2;
+	const double shift{ 0.1 }, zoom{ 0.9 };
+
+	if( key == GLUT_KEY_RIGHT ) MidX += shift * DiffX;
+	if( key == GLUT_KEY_LEFT ) MidX -= shift * DiffX;
+	if( key == GLUT_KEY_UP ) MidY -= shift * DiffY;
+	if( key == GLUT_KEY_DOWN ) MidY += shift * DiffY;
+	if( key == GLUT_KEY_PAGE_DOWN )
+	{
+		DiffX *= zoom;
+		DiffY *= zoom;
+	}
+	if( key == GLUT_KEY_PAGE_UP )
+	{
+		DiffX /= zoom;
+		DiffY /= zoom;
+	}
 
 	glutPostRedisplay();
 }
