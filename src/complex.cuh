@@ -7,6 +7,9 @@ struct Complex
     float imag;
 
     __host__ __device__
+        Complex( T r ) : real( r ), imag( 0 ) {}
+
+    __host__ __device__
         Complex( T r = 0, T i = 0 ) : real( r ), imag( i ) {}
 
     __host__ __device__
@@ -42,4 +45,92 @@ struct Complex
     {
         return sqrt( ( b.real - real ) * ( b.real - real ) + ( b.imag - imag ) * ( b.imag - imag ) );
     }
+
+    template< typename U >
+    __host__ __device__
+    friend Complex< U > operator*( U v, Complex< U > z );
+
+    template< typename U >
+    __host__ __device__
+    friend Complex< U > operator*( Complex< U > z, U v );
+
+    template< typename U >
+    __host__ __device__
+    friend Complex< U > operator+( U v, Complex< U > z );
+
+    template< typename U >
+    __host__ __device__
+    friend Complex< U > operator+( Complex< U > z, U v );
+
+    template< typename U >
+    __host__ __device__
+    friend Complex< U > operator-( U v, Complex< U > z );
+
+    template< typename U >
+    __host__ __device__
+    friend Complex< U > operator-( Complex< U > z, U v );
+
+    template< typename U >
+    __host__ __device__
+    friend Complex< U > operator/( U v, Complex< U > z );
+
+    template< typename U >
+    __host__ __device__
+    friend Complex< U > operator/( Complex< U > z, U v );
 };
+
+template< typename U >
+__host__ __device__
+Complex< U > operator*( U v, Complex< U > z )
+{
+    return Complex< U >( z.real * v, z.imag * v );
+}
+
+template< typename U >
+__host__ __device__
+Complex< U > operator*( Complex< U > z, U v )
+{
+    return Complex< U >( z.real * v, z.imag * v );
+}
+
+template< typename U >
+__host__ __device__
+Complex< U > operator+( U v, Complex< U > z )
+{
+    return Complex< U >( z.real + v, z.imag );
+}
+
+template< typename U >
+__host__ __device__
+Complex< U > operator+( Complex< U > z, U v )
+{
+    return Complex< U >( z.real + v, z.imag );
+}
+
+template< typename U >
+__host__ __device__
+Complex< U > operator-( U v, Complex< U > z )
+{
+    return Complex< U >( z.real - v, z.imag );
+}
+
+template< typename U >
+__host__ __device__
+Complex< U > operator-( Complex< U > z, U v )
+{
+    return Complex< U >( z.real - v, z.imag );
+}
+
+template< typename U >
+__host__ __device__
+Complex< U > operator/( U v, Complex< U > z )
+{
+    return Complex< U >( z.real / v, z.imag / v );
+}
+
+template< typename U >
+__host__ __device__
+Complex< U > operator/( Complex< U > z, U v )
+{
+    return Complex< U >( z.real / v, z.imag / v );
+}

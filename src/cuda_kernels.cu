@@ -1,5 +1,6 @@
 #include <limits>
 #include <vector>
+#include <iostream>
 
 #include <cuda_runtime.h>
 #include <device_launch_parameters.h>
@@ -10,10 +11,35 @@
 #define TX 32
 #define TY 32
 
+std::vector< floatType > zeros_real, zeros_imag;
+floatType* d_zeros_real{ NULL }, * d_zeros_imag{ NULL };
+int zeros_count{ 0 };
+
 const double initRight = 10.0;
 const double initLeft = -initRight;
 const double initUp = 10.0;
 const double initDown = -initUp;
+
+double R{ initRight }, L{ initLeft }, U{ initUp }, D{ initDown }, Xadd{ 0 }, Yadd{ 0 }, Zoom{ 1.0 };
+
+void CalcCoords()
+{
+	auto Right = initRight + Xadd;
+	auto Left = initLeft + Xadd;
+	auto Up = initUp + Yadd;
+	auto Down = initDown + Yadd;
+
+	auto MidX = ( Right + Left ) / 2.0;
+	auto DiffX = Right - MidX;
+	auto MidY = ( Up + Down ) / 2.0;
+	auto DiffY = Up - MidY;
+
+	R = MidX + Zoom * DiffX;
+	L = MidX - Zoom * DiffX;
+	U = MidY + Zoom * DiffY;
+	D = MidY - Zoom * DiffY;
+}
+
 
 
 int divUp( int a, int b )
@@ -26,7 +52,7 @@ template < typename T >
 __host__ __device__
 Complex< T > f( Complex< T > x )
 {
-	return ( x - Complex< T >( -5.0, 3.0 ) ) * ( x - Complex< T >( 5.0, 3.0 ) ) * ( x - Complex< T >( -5.0, -5.0 ) );
+	return x * x * x + 2.0 * x * x + 3.0 * x + 1.0;
 }
 
 
@@ -34,9 +60,7 @@ template< typename T >
 __host__ __device__
 Complex< T > f_div( Complex< T > x )
 {
-	const auto h = Complex< T >( 0.0, 1e-6 );
-
-	return ( f( x + h ) - f( x - h ) ) / ( Complex < T >( 2 ) * h );
+	return 3.0 * x * x + 4.0 * x + 3.0;
 }
 
 __device__
@@ -176,15 +200,7 @@ void NewtonKernel(floatType* zeros_real, floatType* zeros_imag, int zeros_N, uch
 			break;
 
 	d_out[ g_idx ] = siutZeroColor( idx );
-
-	//d_out[ g_idx ].x = clip( ( int )( z_n.real * 10.0 ) );
-	//d_out[ g_idx ].y = clip( ( int )( z_n.imag * 10.0 ) );
-	//d_out[ g_idx ].z = clip( ( int )( z_n.imag * 100.0 ) );
 }
-
-std::vector< floatType > zeros_real, zeros_imag;
-floatType* d_zeros_real{ NULL }, * d_zeros_imag{ NULL };
-int zeros_count{ 0 };
 
 void prepareKernelData()
 {
@@ -193,6 +209,11 @@ void prepareKernelData()
 	{
 		zeros_real.push_back( z.real );
 		zeros_imag.push_back( z.imag );
+
+		std::cout << z.real << " ";
+		if( z.imag >= 0 )
+			std::cout << "+";
+		std::cout << z.imag << "i\n";
 	}
 
 	zeros_count = zeros.size();
@@ -219,7 +240,5 @@ void kernelLauncher( uchar4* d_out, int w, int h )
 	if( d_zeros_real == NULL || d_zeros_imag == NULL || zeros_count == 0 )
 		throw;
 
-	NewtonKernel <<< gridSize, blockSize, locMemSize >>> ( d_zeros_real, d_zeros_imag, zeros_count, d_out, w, h, initLeft, initRight, initDown, initRight );
-
-
+	NewtonKernel <<< gridSize, blockSize, locMemSize >>> ( d_zeros_real, d_zeros_imag, zeros_count, d_out, w, h, L, R, D, U );
 }

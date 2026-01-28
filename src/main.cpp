@@ -23,6 +23,7 @@ struct cudaGraphicsResource* cuda_pbo_resource;
 
 void render()
 {
+    CalcCoords();
     uchar4* d_out = 0;
     cudaGraphicsMapResources( 1, &cuda_pbo_resource, 0 );
     cudaGraphicsResourceGetMappedPointer( ( void** )&d_out, NULL, cuda_pbo_resource );

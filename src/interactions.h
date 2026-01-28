@@ -1,7 +1,9 @@
 #pragma once
 
-#define W 600
-#define H 600
+#define W 800
+#define H 800
+
+extern double Xadd, Yadd, Zoom;
 
 void keyboard( unsigned char key, int x, int y )
 {
@@ -12,7 +14,12 @@ void keyboard( unsigned char key, int x, int y )
 
 void handleSpecialKeypress( int key, int x, int y )
 {
-	if( key == GLUT_KEY_LEFT ) return;
+	if( key == GLUT_KEY_RIGHT ) Xadd += ( 2.0 * Zoom );
+	if( key == GLUT_KEY_LEFT ) Xadd -= ( 2.0 * Zoom );
+	if( key == GLUT_KEY_UP ) Yadd += ( 2.0 * Zoom );
+	if( key == GLUT_KEY_DOWN ) Yadd -= ( 2.0 * Zoom );
+	if( key == GLUT_KEY_PAGE_DOWN ) Zoom *= 1.2;
+	if( key == GLUT_KEY_PAGE_UP ) Zoom /= 1.2;
 
 	glutPostRedisplay();
 }

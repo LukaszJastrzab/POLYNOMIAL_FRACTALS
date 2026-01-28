@@ -7,6 +7,8 @@ struct int2;
 
 using floatType = double;
 
+void CalcCoords();
+
 template < typename T >
 __host__ __device__
 Complex< T > f( Complex< T > x );
